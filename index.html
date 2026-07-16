@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InventoryCloud — Stationery Manager</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="brand-icon">🗄</div>
+      <div>
+        <div class="brand-name">InventoryCloud</div>
+        <div class="brand-sub">Stationery Manager</div>
+      </div>
+    </div>
+
+    <h1>Iniciar sesión</h1>
+    <p class="subtitle">Accede al panel de administración de tu papelería.</p>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="loginUser">Usuario</label>
+        <input id="loginUser" type="text" placeholder="admin" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="loginPass">Contraseña</label>
+        <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password" required>
+      </div>
+
+      <p id="loginError" class="form-error hidden"></p>
+
+      <button type="submit" class="btn btn-primary btn-block">Iniciar sesión</button>
+    </form>
+
+    <p class="login-hint">Usuario por defecto: <strong>admin</strong> / <strong>admin123</strong></p>
+  </div>
+</div>
+
+<div class="app hidden" id="appRoot">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">🗄</div>
+      <div>
+        <div class="brand-name">InventoryCloud</div>
+        <div class="brand-sub">Stationery Manager</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard">
+        <span class="nav-ic">▦</span> Inventario General
+      </button>
+      <button class="nav-item" data-view="register">
+        <span class="nav-ic">＋</span> Registrar Producto
+      </button>
+      <button class="nav-item" data-view="stockin">
+        <span class="nav-ic">↘</span> Entrada de Stock
+      </button>
+      <button class="nav-item" data-view="stockout">
+        <span class="nav-ic">↗</span> Salida de Stock
+      </button>
+      <button class="nav-item" data-view="alerts">
+        <span class="nav-ic">⚠</span> Alertas de Stock Bajo
+      </button>
+      <button class="nav-item" data-view="detail">
+        <span class="nav-ic">🧾</span> Detalle de Producto
+      </button>
+      <button class="nav-item" data-view="history">
+        <span class="nav-ic">🕒</span> Historial de Movimientos
+      </button>
+    </nav>
+
+    <button id="logoutBtn" class="logout">⏻ Cerrar sesión</button>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="search">
+        <span>🔍</span>
+        <input id="globalSearch" type="text" placeholder="Buscar en inventario...">
+      </div>
+      <div class="topbar-right">
+        <div class="notif-wrap">
+          <button id="notifBell" class="icon-btn" title="Notificaciones" aria-label="Notificaciones">🔔<span id="notifDot" class="dot hidden"></span></button>
+          <div id="notifPanel" class="notif-panel hidden">
+            <div class="notif-header">
+              <span>Notificaciones</span>
+              <span id="notifCount" class="notif-count">0</span>
+            </div>
+            <div id="notifList" class="notif-list"></div>
+            <button id="notifSeeAll" class="notif-footer">Ver todas las alertas de stock bajo</button>
+          </div>
+        </div>
+        <span class="icon-btn">⚙</span>
+        <div class="avatar">A</div>
+      </div>
+    </header>
+
+    <section id="view-dashboard" class="view active">
+      <div class="view-head">
+        <div>
+          <h1>Inventario General</h1>
+          <p class="subtitle">Gestiona los productos y existencias de tu papelería.</p>
+        </div>
+        <button class="btn btn-primary" data-goto="register">＋ Registrar producto</button>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Productos <span class="stat-ic">📦</span></div>
+          <div class="stat-value" id="statTotal">0</div>
+          <div class="stat-foot">En el inventario</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Stock Bajo <span class="stat-ic">⚠</span></div>
+          <div class="stat-value danger" id="statLow">0</div>
+          <div class="stat-foot"><span class="pill pill-danger">Requiere atención</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Categorías <span class="stat-ic">🗂</span></div>
+          <div class="stat-value" id="statCats">4</div>
+          <div class="stat-foot">Cuadernos, Escritura, Arte, Oficina</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Valor Inventario <span class="stat-ic">💰</span></div>
+          <div class="stat-value" id="statValue">$0.00</div>
+          <div class="stat-foot">Valor estimado</div>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div class="cat-filters" id="catFilters">
+          <button class="cat-btn active" data-cat="">Todos</button>
+          <button class="cat-btn" data-cat="Cuadernos">Cuadernos</button>
+          <button class="cat-btn" data-cat="Escritura">Escritura</button>
+          <button class="cat-btn" data-cat="Arte">Arte</button>
+          <button class="cat-btn" data-cat="Oficina">Oficina</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="prod-table">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th>Stock</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="productTableBody"></tbody>
+        </table>
+        <div id="emptyState" class="empty-state hidden">No hay productos que coincidan con la búsqueda.</div>
+      </div>
+    </section>
+
+    <section id="view-register" class="view">
+      <div class="view-head">
+        <div>
+          <h1>Registrar Producto</h1>
+          <p class="subtitle">Complete la información para añadir un nuevo artículo al inventario de papelería.</p>
+        </div>
+      </div>
+
+      <form id="registerForm" class="card form-card">
+        <div class="field">
+          <label for="pName">Nombre del producto</label>
+          <input id="pName" type="text" placeholder="Ej. Cuaderno Premium A4" required>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="pCategory">Categoría</label>
+            <select id="pCategory" required>
+              <option value="" disabled selected>Seleccione categoría</option>
+              <option>Cuadernos</option>
+              <option>Escritura</option>
+              <option>Arte</option>
+              <option>Oficina</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pPrice">Precio unitario ($)</label>
+            <input id="pPrice" type="number" min="0" step="0.01" placeholder="0.00" required>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="pQty">Cantidad inicial</label>
+            <input id="pQty" type="number" min="0" step="1" placeholder="0" required>
+          </div>
+          <div class="field">
+            <label for="pMin">Alerta stock mínimo</label>
+            <input id="pMin" type="number" min="0" step="1" placeholder="10" required>
+          </div>
+        </div>
+
+        <p id="registerError" class="form-error hidden"></p>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-goto="dashboard">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Guardar producto</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="view-stockin" class="view">
+      <div class="view-head">
+        <div>
+          <h1>Entrada de Stock</h1>
+          <p class="subtitle">Registra la mercancía que llega y actualiza el stock disponible.</p>
+        </div>
+      </div>
+
+      <div class="card form-card">
+        <div class="field">
+          <label for="inProduct">Selecciona un producto existente</label>
+          <select id="inProduct">
+            <option value="">Seleccione un producto...</option>
+          </select>
+        </div>
+
+        <div class="stock-current">
+          <span>Stock actual</span>
+          <strong id="inCurrentStock">--</strong>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="inQty">Cantidad a ingresar</label>
+            <input id="inQty" type="number" min="1" step="1" placeholder="0">
+          </div>
+        </div>
+
+        <p id="inError" class="form-error hidden"></p>
+
+        <button id="inSubmit" class="btn btn-primary btn-block">↘ Registrar entrada</button>
+      </div>
+    </section>
+
+    <section id="view-stockout" class="view">
+      <div class="view-head">
+        <div>
+          <h1>Salida de Stock</h1>
+          <p class="subtitle">Registra la venta o retiro de productos del inventario.</p>
+        </div>
+      </div>
+
+      <div class="card form-card">
+        <div class="field">
+          <label for="outProduct">Selecciona un producto existente</label>
+          <select id="outProduct">
+            <option value="">Seleccione un producto...</option>
+          </select>
+        </div>
+
+        <div class="stock-current">
+          <span>Stock actual</span>
+          <strong id="outCurrentStock">--</strong>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="outQty">Cantidad a retirar</label>
+            <input id="outQty" type="number" min="1" step="1" placeholder="0">
+          </div>
+        </div>
+
+        <p id="outError" class="form-error hidden"></p>
+
+        <button id="outSubmit" class="btn btn-primary btn-block">↗ Registrar salida</button>
+      </div>
+    </section>
+
+    <section id="view-alerts" class="view">
+      <div class="view-head">
+        <div>
+          <h1>⚠ Alertas de Stock Bajo</h1>
+          <p class="subtitle" id="alertsSubtitle">Productos por debajo del stock mínimo definido.</p>
+        </div>
+      </div>
+
+      <div id="alertsGrid" class="alerts-grid"></div>
+      <div id="alertsEmpty" class="empty-state hidden">🎉 No hay productos con stock bajo actualmente.</div>
+    </section>
+
+    <section id="view-detail" class="view">
+      <div class="view-head">
+        <div>
+          <h1>Detalle de Producto</h1>
+          <p class="subtitle">Consulta, edita o elimina la información del producto.</p>
+        </div>
+      </div>
+
+      <div id="detailEmpty" class="empty-state">Selecciona un producto desde el <button type="button" class="link-btn" data-goto="dashboard">Inventario General</button> para ver su detalle.</div>
+
+      <form id="detailForm" class="card form-card hidden">
+        <div class="field">
+          <label for="detailName">Nombre del producto</label>
+          <input id="detailName" type="text" required>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="detailCategory">Categoría</label>
+            <select id="detailCategory" required>
+              <option>Cuadernos</option>
+              <option>Escritura</option>
+              <option>Arte</option>
+              <option>Oficina</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="detailPrice">Precio unitario ($)</label>
+            <input id="detailPrice" type="number" min="0" step="0.01" required>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="detailStock">Cantidad actual</label>
+            <input id="detailStock" type="number" min="0" step="1" required>
+          </div>
+          <div class="field">
+            <label for="detailMin">Alerta stock mínimo</label>
+            <input id="detailMin" type="number" min="0" step="1" required>
+          </div>
+        </div>
+
+        <p id="detailError" class="form-error hidden"></p>
+
+        <div class="form-actions detail-actions">
+          <button type="button" id="detailDelete" class="btn btn-danger-ghost">🗑 Eliminar producto</button>
+          <div class="detail-actions-right">
+            <button type="button" class="btn btn-ghost" data-goto="dashboard">Cancelar</button>
+            <button type="submit" class="btn btn-primary">💾 Guardar cambios</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section id="view-history" class="view">
+      <div class="view-head">
+        <div>
+          <h1>Historial de Movimientos</h1>
+          <p class="subtitle">Consulta todas las entradas y salidas de stock registradas.</p>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div class="cat-filters" id="historyFilters">
+          <button class="cat-btn active" data-type="">Todos</button>
+          <button class="cat-btn" data-type="Entrada">Entrada</button>
+          <button class="cat-btn" data-type="Salida">Salida</button>
+        </div>
+      </div>
+
+      <div id="historyTableWrap" class="table-wrap">
+        <table class="prod-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody"></tbody>
+        </table>
+      </div>
+      <div id="historyEmpty" class="empty-state hidden">Aún no hay movimientos registrados.</div>
+    </section>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

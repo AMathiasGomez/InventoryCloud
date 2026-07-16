@@ -1,0 +1,15 @@
+# Archivos temporales / de trabajo
+scratch_pages/
+server.log
+*.log
+
+# Sistema operativo
+Thumbs.db
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+
+# Configuración local de Claude Code
+.claude/

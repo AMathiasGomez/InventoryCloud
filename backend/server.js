@@ -1,6 +1,7 @@
 // Servidor principal de la API de InventoryCloud.
-require('dotenv').config();
 const path = require('path');
+// Carga el .env de la carpeta backend sin importar desde dónde se ejecute.
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 

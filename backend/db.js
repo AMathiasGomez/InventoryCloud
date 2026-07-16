@@ -1,6 +1,8 @@
 // Conexión a MySQL mediante un pool de conexiones (mysql2/promise).
+const path = require('path');
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+// Carga el .env de la carpeta backend sin importar desde dónde se ejecute.
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 let pool;
 

@@ -1,112 +1,117 @@
-// ---------- Auth ----------
-const USERS_KEY = 'inventoryCloudUsers';
-const SESSION_KEY = 'sesionActiva';
+// ---------- Cliente API ----------
+const API_URL = (window.INVENTORY_API_URL || 'http://localhost:3000/api').replace(/\/+$/, '');
+const TOKEN_KEY = 'inventoryCloudToken';
 
-function ensureDefaultUser() {
-  if (!localStorage.getItem(USERS_KEY)) {
-    localStorage.setItem(USERS_KEY, JSON.stringify([{ username: 'admin', password: 'admin123' }]));
+function getToken() { return sessionStorage.getItem(TOKEN_KEY); }
+function isLoggedIn() { return !!getToken(); }
+
+// Helper genérico para llamar a la API. Adjunta el token, parsea JSON
+// y lanza un Error con el mensaje del servidor si la respuesta falla.
+async function api(path, { method = 'GET', body } = {}) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+  let res;
+  try {
+    res = await fetch(API_URL + path, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error('No se pudo conectar con el servidor. Verifica que el backend esté disponible.');
   }
-}
-ensureDefaultUser();
 
-function isLoggedIn() {
-  return sessionStorage.getItem(SESSION_KEY) === 'true';
+  let data = null;
+  try { data = await res.json(); } catch { /* respuesta sin cuerpo */ }
+
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error((data && data.error) || 'Sesión expirada. Inicia sesión de nuevo.');
+  }
+  if (!res.ok) {
+    throw new Error((data && data.error) || 'Ocurrió un error en el servidor.');
+  }
+  return data;
 }
 
-function checkCredentials(username, password) {
-  const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-  return users.some(u => u.username === username && u.password === password);
-}
-
+// ---------- Autenticación / sesión ----------
 const loginScreen = document.getElementById('loginScreen');
 const appRoot = document.getElementById('appRoot');
 const loginForm = document.getElementById('loginForm');
 const loginError = document.getElementById('loginError');
 
-function showLogin() {
+function showLoginScreen() {
   appRoot.classList.add('hidden');
   loginScreen.classList.remove('hidden');
+}
+
+function showLogin() {
+  showLoginScreen();
   loginForm.reset();
   loginError.classList.add('hidden');
 }
 
-function showApp() {
+function handleUnauthorized() {
+  sessionStorage.removeItem(TOKEN_KEY);
+  showLoginScreen();
+}
+
+// Carga los datos del inventario y movimientos desde la API a la caché local.
+async function loadData() {
+  const [prods, movs] = await Promise.all([api('/productos'), api('/movimientos')]);
+  products = prods;
+  movements = movs;
+}
+
+async function showApp() {
+  try {
+    await loadData();
+  } catch (err) {
+    handleUnauthorized();
+    loginError.textContent = err.message;
+    loginError.classList.remove('hidden');
+    return;
+  }
   loginScreen.classList.add('hidden');
   appRoot.classList.remove('hidden');
   goto('dashboard');
 }
 
-loginForm.addEventListener('submit', (e) => {
+loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const username = document.getElementById('loginUser').value.trim();
   const password = document.getElementById('loginPass').value;
+  const submitBtn = loginForm.querySelector('button[type="submit"]');
 
-  if (checkCredentials(username, password)) {
-    sessionStorage.setItem(SESSION_KEY, 'true');
+  submitBtn.disabled = true;
+  try {
+    const { token } = await api('/login', { method: 'POST', body: { username, password } });
+    sessionStorage.setItem(TOKEN_KEY, token);
     loginError.classList.add('hidden');
-    showApp();
-  } else {
-    loginError.textContent = 'Usuario o contraseña incorrectos';
+    await showApp();
+  } catch (err) {
+    loginError.textContent = err.message || 'Usuario o contraseña incorrectos';
     loginError.classList.remove('hidden');
+  } finally {
+    submitBtn.disabled = false;
   }
 });
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
-  sessionStorage.removeItem(SESSION_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
   showLogin();
 });
 
-const STORAGE_KEY = 'inventoryCloudProducts';
-
-const seedProducts = [
-  { id: 1, name: 'Cuaderno Premium A4', category: 'Cuadernos', stock: 45, min: 15, price: 3.5 },
-  { id: 2, name: 'Bolígrafo Azul Punta Fina', category: 'Escritura', stock: 8, min: 20, price: 0.8 },
-  { id: 3, name: 'Set de Acuarelas 12 colores', category: 'Arte', stock: 12, min: 10, price: 6.2 },
-  { id: 4, name: 'Papel Bond A4 80g (Resma)', category: 'Oficina', stock: 150, min: 30, price: 4.0 },
-  { id: 5, name: 'Lápiz Mecánico 0.5mm', category: 'Escritura', stock: 4, min: 40, price: 1.2 },
-  { id: 6, name: 'Marcadores Punta Fina x12', category: 'Arte', stock: 25, min: 10, price: 5.5 },
-];
-
-function loadProducts() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(seedProducts));
-    return [...seedProducts];
-  }
-  try { return JSON.parse(raw); } catch { return [...seedProducts]; }
-}
-
-function saveProducts(products) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-}
-
-const MOVEMENTS_KEY = 'inventoryCloudMovements';
-
-function loadMovements() {
-  const raw = localStorage.getItem(MOVEMENTS_KEY);
-  try { return raw ? JSON.parse(raw) : []; } catch { return []; }
-}
-
-function saveMovements(movements) {
-  localStorage.setItem(MOVEMENTS_KEY, JSON.stringify(movements));
-}
-
-function addMovement(product, type, qty) {
-  movements.push({
-    id: Date.now() + Math.random(),
-    productId: product.id,
-    productName: product.name,
-    type,
-    qty,
-    date: new Date().toISOString(),
-  });
-  saveMovements(movements);
-}
-
-let products = loadProducts();
-let movements = loadMovements();
+// ---------- Estado en memoria (caché de la API) ----------
+let products = [];
+let movements = [];
 let activeCategory = '';
 let searchTerm = '';
+let statusFilter = '';
+let sortBy = 'name-asc';
 let historyFilter = '';
 let currentDetailId = null;
 
@@ -157,8 +162,21 @@ function renderDashboard() {
   const filtered = products.filter(p => {
     const matchesCat = !activeCategory || p.category === activeCategory;
     const matchesSearch = !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCat && matchesSearch;
+    const matchesStatus = !statusFilter
+      || (statusFilter === 'low' && isLow(p))
+      || (statusFilter === 'ok' && !isLow(p));
+    return matchesCat && matchesSearch && matchesStatus;
   });
+
+  const sorters = {
+    'name-asc': (a, b) => a.name.localeCompare(b.name, 'es'),
+    'name-desc': (a, b) => b.name.localeCompare(a.name, 'es'),
+    'stock-asc': (a, b) => a.stock - b.stock,
+    'stock-desc': (a, b) => b.stock - a.stock,
+    'price-asc': (a, b) => a.price - b.price,
+    'price-desc': (a, b) => b.price - a.price,
+  };
+  filtered.sort(sorters[sortBy] || sorters['name-asc']);
 
   productTableBody.innerHTML = '';
   emptyState.classList.toggle('hidden', filtered.length > 0);
@@ -187,12 +205,15 @@ function renderDashboard() {
   });
 
   productTableBody.querySelectorAll('[data-del]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = Number(btn.dataset.del);
-      if (confirm('¿Eliminar este producto del inventario?')) {
-        products = products.filter(p => p.id !== id);
-        saveProducts(products);
+      if (!confirm('¿Eliminar este producto del inventario?')) return;
+      try {
+        await api(`/productos/${id}`, { method: 'DELETE' });
+        await loadData();
         renderDashboard();
+      } catch (err) {
+        alert(err.message);
       }
     });
   });
@@ -217,6 +238,28 @@ document.getElementById('globalSearch').addEventListener('input', (e) => {
   renderDashboard();
 });
 
+document.getElementById('statusFilter').addEventListener('change', (e) => {
+  statusFilter = e.target.value;
+  renderDashboard();
+});
+
+document.getElementById('sortFilter').addEventListener('change', (e) => {
+  sortBy = e.target.value;
+  renderDashboard();
+});
+
+document.getElementById('clearFilters').addEventListener('click', () => {
+  activeCategory = '';
+  searchTerm = '';
+  statusFilter = '';
+  sortBy = 'name-asc';
+  document.getElementById('globalSearch').value = '';
+  document.getElementById('statusFilter').value = '';
+  document.getElementById('sortFilter').value = 'name-asc';
+  document.querySelectorAll('#catFilters .cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === ''));
+  renderDashboard();
+});
+
 // ---------- Register product ----------
 const registerForm = document.getElementById('registerForm');
 const registerError = document.getElementById('registerError');
@@ -226,7 +269,7 @@ function resetRegisterForm() {
   registerError.classList.add('hidden');
 }
 
-registerForm.addEventListener('submit', (e) => {
+registerForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('pName').value.trim();
   const category = document.getElementById('pCategory').value;
@@ -240,19 +283,24 @@ registerForm.addEventListener('submit', (e) => {
     return;
   }
 
-  const newProduct = {
-    id: Date.now(),
-    name,
-    category: category || 'Oficina',
-    stock: qty,
-    min: isNaN(min) ? 0 : min,
-    price: isNaN(price) ? 0 : price,
-  };
-
-  products.push(newProduct);
-  saveProducts(products);
-  registerError.classList.add('hidden');
-  goto('dashboard');
+  try {
+    await api('/productos', {
+      method: 'POST',
+      body: {
+        name,
+        category: category || 'Oficina',
+        stock: qty,
+        min: isNaN(min) ? 0 : min,
+        price: isNaN(price) ? 0 : price,
+      },
+    });
+    await loadData();
+    registerError.classList.add('hidden');
+    goto('dashboard');
+  } catch (err) {
+    registerError.textContent = err.message;
+    registerError.classList.remove('hidden');
+  }
 });
 
 // ---------- Stock In / Stock Out ----------
@@ -285,7 +333,7 @@ outProduct.addEventListener('change', () => {
   outCurrentStock.textContent = p ? `${p.stock} unidades` : '--';
 });
 
-document.getElementById('inSubmit').addEventListener('click', () => {
+document.getElementById('inSubmit').addEventListener('click', async () => {
   const p = products.find(p => p.id === Number(inProduct.value));
   const qty = parseInt(document.getElementById('inQty').value, 10);
   if (!p) {
@@ -298,17 +346,21 @@ document.getElementById('inSubmit').addEventListener('click', () => {
     inError.classList.remove('hidden');
     return;
   }
-  p.stock += qty;
-  saveProducts(products);
-  addMovement(p, 'Entrada', qty);
-  inError.classList.add('hidden');
-  renderStockSelectors();
-  inProduct.value = String(p.id);
-  inCurrentStock.textContent = `${p.stock} unidades`;
-  alert(`Entrada registrada: +${qty} unidades de "${p.name}". Nuevo stock: ${p.stock}.`);
+  try {
+    const res = await api('/movimientos/entrada', { method: 'POST', body: { productId: p.id, qty } });
+    await loadData();
+    inError.classList.add('hidden');
+    renderStockSelectors();
+    inProduct.value = String(p.id);
+    inCurrentStock.textContent = `${res.nuevoStock} unidades`;
+    alert(`Entrada registrada: +${qty} unidades de "${p.name}". Nuevo stock: ${res.nuevoStock}.`);
+  } catch (err) {
+    inError.textContent = err.message;
+    inError.classList.remove('hidden');
+  }
 });
 
-document.getElementById('outSubmit').addEventListener('click', () => {
+document.getElementById('outSubmit').addEventListener('click', async () => {
   const p = products.find(p => p.id === Number(outProduct.value));
   const qty = parseInt(document.getElementById('outQty').value, 10);
   if (!p) {
@@ -326,14 +378,18 @@ document.getElementById('outSubmit').addEventListener('click', () => {
     outError.classList.remove('hidden');
     return;
   }
-  p.stock -= qty;
-  saveProducts(products);
-  addMovement(p, 'Salida', qty);
-  outError.classList.add('hidden');
-  renderStockSelectors();
-  outProduct.value = String(p.id);
-  outCurrentStock.textContent = `${p.stock} unidades`;
-  alert(`Salida registrada: -${qty} unidades de "${p.name}". Nuevo stock: ${p.stock}.`);
+  try {
+    const res = await api('/movimientos/salida', { method: 'POST', body: { productId: p.id, qty } });
+    await loadData();
+    outError.classList.add('hidden');
+    renderStockSelectors();
+    outProduct.value = String(p.id);
+    outCurrentStock.textContent = `${res.nuevoStock} unidades`;
+    alert(`Salida registrada: -${qty} unidades de "${p.name}". Nuevo stock: ${res.nuevoStock}.`);
+  } catch (err) {
+    outError.textContent = err.message;
+    outError.classList.remove('hidden');
+  }
 });
 
 // ---------- Alerts ----------
@@ -469,7 +525,7 @@ function renderDetail() {
   detailError.classList.add('hidden');
 }
 
-detailForm.addEventListener('submit', (e) => {
+detailForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const p = products.find(pr => pr.id === currentDetailId);
   if (!p) return;
@@ -491,25 +547,30 @@ detailForm.addEventListener('submit', (e) => {
     return;
   }
 
-  p.name = name;
-  p.category = category;
-  p.stock = stock;
-  p.min = min;
-  p.price = price;
-  saveProducts(products);
-  detailError.classList.add('hidden');
-  currentDetailId = null;
-  goto('dashboard');
-});
-
-document.getElementById('detailDelete').addEventListener('click', () => {
-  const p = products.find(pr => pr.id === currentDetailId);
-  if (!p) return;
-  if (confirm(`¿Eliminar "${p.name}" del inventario? Esta acción no se puede deshacer.`)) {
-    products = products.filter(pr => pr.id !== p.id);
-    saveProducts(products);
+  try {
+    await api(`/productos/${p.id}`, { method: 'PUT', body: { name, category, stock, min, price } });
+    await loadData();
+    detailError.classList.add('hidden');
     currentDetailId = null;
     goto('dashboard');
+  } catch (err) {
+    detailError.textContent = err.message;
+    detailError.classList.remove('hidden');
+  }
+});
+
+document.getElementById('detailDelete').addEventListener('click', async () => {
+  const p = products.find(pr => pr.id === currentDetailId);
+  if (!p) return;
+  if (!confirm(`¿Eliminar "${p.name}" del inventario? Esta acción no se puede deshacer.`)) return;
+  try {
+    await api(`/productos/${p.id}`, { method: 'DELETE' });
+    await loadData();
+    currentDetailId = null;
+    goto('dashboard');
+  } catch (err) {
+    detailError.textContent = err.message;
+    detailError.classList.remove('hidden');
   }
 });
 
@@ -551,9 +612,6 @@ document.getElementById('historyFilters').addEventListener('click', (e) => {
 });
 
 // ---------- Init ----------
-renderStockSelectors();
-renderAlerts();
-
 if (isLoggedIn()) {
   showApp();
 } else {

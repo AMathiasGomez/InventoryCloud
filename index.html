@@ -141,6 +141,31 @@
         </div>
       </div>
 
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label class="filter-label" for="statusFilter">Estado</label>
+          <select id="statusFilter" class="filter-select">
+            <option value="">Todos</option>
+            <option value="ok">En stock</option>
+            <option value="low">Stock bajo</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label" for="sortFilter">Ordenar por</label>
+          <select id="sortFilter" class="filter-select">
+            <option value="name-asc">Nombre (A–Z)</option>
+            <option value="name-desc">Nombre (Z–A)</option>
+            <option value="stock-asc">Stock (menor a mayor)</option>
+            <option value="stock-desc">Stock (mayor a menor)</option>
+            <option value="price-asc">Precio (menor a mayor)</option>
+            <option value="price-desc">Precio (mayor a menor)</option>
+          </select>
+        </div>
+
+        <button id="clearFilters" class="btn btn-ghost filter-clear">Limpiar filtros</button>
+      </div>
+
       <div class="table-wrap">
         <table class="prod-table">
           <thead>
@@ -378,6 +403,7 @@
   </main>
 </div>
 
+<script src="config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

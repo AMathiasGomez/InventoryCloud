@@ -476,6 +476,47 @@ h1 { margin: 0 0 6px; font-size: 24px; font-weight: 800; letter-spacing: -.3px; 
 .filter-row { margin-bottom: 16px; }
 .cat-filters { display: flex; gap: 8px; flex-wrap: wrap; }
 
+.filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.filter-group { display: flex; flex-direction: column; gap: 6px; }
+
+.filter-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.filter-select {
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  min-width: 190px;
+}
+.filter-select:focus {
+  border-color: var(--brand2);
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, .12);
+}
+
+.filter-clear { margin-left: auto; }
+
+@media (max-width: 620px) {
+  .filter-clear { margin-left: 0; }
+  .filter-group, .filter-select { width: 100%; }
+}
+
 .cat-btn {
   border: 1px solid var(--border);
   background: #fff;

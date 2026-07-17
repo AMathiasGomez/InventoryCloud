@@ -1,0 +1,9 @@
+# Vercel solo debe publicar el frontend estático.
+# Se excluye todo lo del backend/base de datos para un despliegue limpio.
+node_modules
+backend
+database
+package.json
+package-lock.json
+*.md
+.claude

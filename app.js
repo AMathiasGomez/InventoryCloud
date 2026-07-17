@@ -353,7 +353,7 @@ document.getElementById('inSubmit').addEventListener('click', async () => {
     renderStockSelectors();
     inProduct.value = String(p.id);
     inCurrentStock.textContent = `${res.nuevoStock} unidades`;
-    alert(`Entrada registrada: +${qty} unidades de "${p.name}". Nuevo stock: ${res.nuevoStock}.`);
+    showStockModal({ tipo: 'Entrada', productName: p.name, qty, nuevoStock: res.nuevoStock });
   } catch (err) {
     inError.textContent = err.message;
     inError.classList.remove('hidden');
@@ -385,7 +385,7 @@ document.getElementById('outSubmit').addEventListener('click', async () => {
     renderStockSelectors();
     outProduct.value = String(p.id);
     outCurrentStock.textContent = `${res.nuevoStock} unidades`;
-    alert(`Salida registrada: -${qty} unidades de "${p.name}". Nuevo stock: ${res.nuevoStock}.`);
+    showStockModal({ tipo: 'Salida', productName: p.name, qty, nuevoStock: res.nuevoStock });
   } catch (err) {
     outError.textContent = err.message;
     outError.classList.remove('hidden');
@@ -496,6 +496,39 @@ document.addEventListener('click', (e) => {
   if (!notifPanel.classList.contains('hidden') && !e.target.closest('.notif-wrap')) {
     closeNotifPanel();
   }
+});
+
+// ---------- Modal de confirmación (entrada/salida) ----------
+const modalOverlay = document.getElementById('modalOverlay');
+const modalIcon = document.getElementById('modalIcon');
+const modalTitle = document.getElementById('modalTitle');
+const modalProduct = document.getElementById('modalProduct');
+const modalChange = document.getElementById('modalChange');
+const modalStock = document.getElementById('modalStock');
+const modalClose = document.getElementById('modalClose');
+
+function showStockModal({ tipo, productName, qty, nuevoStock }) {
+  const esEntrada = tipo === 'Entrada';
+  modalOverlay.classList.toggle('salida', !esEntrada);
+  modalIcon.textContent = esEntrada ? '↘' : '↗';
+  modalTitle.textContent = esEntrada ? 'Entrada registrada' : 'Salida registrada';
+  modalProduct.textContent = productName;
+  modalChange.textContent = `${esEntrada ? '+' : '−'}${qty} unidades`;
+  modalStock.textContent = `${nuevoStock} unidades`;
+  modalOverlay.classList.remove('hidden');
+  modalClose.focus();
+}
+
+function closeModal() {
+  modalOverlay.classList.add('hidden');
+}
+
+modalClose.addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) closeModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !modalOverlay.classList.contains('hidden')) closeModal();
 });
 
 // ---------- Product detail / edit ----------

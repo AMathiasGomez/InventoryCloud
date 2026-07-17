@@ -403,6 +403,20 @@
   </main>
 </div>
 
+<div id="modalOverlay" class="modal-overlay hidden">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-icon" id="modalIcon">✓</div>
+    <h3 class="modal-title" id="modalTitle"></h3>
+    <p class="modal-product" id="modalProduct"></p>
+    <div class="modal-change" id="modalChange"></div>
+    <div class="modal-stock">
+      <span>Stock actual</span>
+      <strong id="modalStock">--</strong>
+    </div>
+    <button class="btn btn-primary btn-block" id="modalClose">Aceptar</button>
+  </div>
+</div>
+
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
